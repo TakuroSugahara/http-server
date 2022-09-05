@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 
@@ -21,14 +22,12 @@ func main() {
 func run() error {
 	fmt.Println("Start tcp listen...")
 
-	fmt.Println("create port")
 	listen, err := net.Listen("tcp", "localhost:12345")
 	if err != nil {
 		errors.WithStack(err)
 	}
 	defer listen.Close()
 
-	fmt.Println("create connection")
 	conn, err := listen.Accept()
 	if err != nil {
 		return errors.WithStack(err)
@@ -37,18 +36,19 @@ func run() error {
 
 	fmt.Println(">>> start")
 
-	// 受け取り用バッファ
-	buf := make([]byte, 1024)
+	scanner := bufio.NewScanner(conn)
 
-	for {
-		n, err := conn.Read(buf)
-		if n == 0 {
+	// 1行ずつ処理する
+	for scanner.Scan() {
+		// headerとbodyの間の空行があるのでheaderだけを読み取ることになる
+		if scanner.Text() == "" {
 			break
 		}
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		fmt.Println(string(buf[:n]))
+		fmt.Println(scanner.Text())
+	}
+
+	if scanner.Err() != nil {
+		return scanner.Err()
 	}
 
 	fmt.Println("<<< end")
