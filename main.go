@@ -79,6 +79,8 @@ func run() error {
 		header[headerFields[0]] = headerFields[1]
 	}
 
+	// TODO: goroutineを使って複数リクエストに対応できるようにする
+
 	// リクエストボディ
 	method, ok := header["Method"]
 	if !ok {
