@@ -99,6 +99,14 @@ func run() error {
 		fmt.Println("BODY:", string(buf))
 	}
 
+	// status line
+	io.WriteString(conn, "HTTP/1.1 200 OK \r\n")
+
+	// header
+	io.WriteString(conn, "Content-Type: text/html\r\n")
+	io.WriteString(conn, "\r\n")
+	io.WriteString(conn, "<h1>Hello World!</h1>")
+
 	fmt.Println("<<< end")
 
 	return nil
