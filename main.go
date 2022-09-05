@@ -3,7 +3,11 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
+	"net/textproto"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -36,20 +40,46 @@ func run() error {
 
 	fmt.Println(">>> start")
 
-	scanner := bufio.NewScanner(conn)
+	reader := bufio.NewReader(conn)
+	// headerとbodyを分けて処理している関係でバッファがなくなる
+	// textprotoを利用してreaderを生成しheaderを読み取る
+	scanner := textproto.NewReader(reader)
+
+	var contentLength int
 
 	// 1行ずつ処理する
-	for scanner.Scan() {
+	for {
+		line, err := scanner.ReadLine()
 		// headerとbodyの間の空行があるのでheaderだけを読み取ることになる
-		if scanner.Text() == "" {
+		if line == "" {
 			break
 		}
-		fmt.Println(scanner.Text())
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		// ex) line = "Content-Length: 23"
+		if strings.HasPrefix(line, "Content-Length") {
+			contentLength, err = strconv.Atoi(strings.TrimSpace(strings.Split(line, ":")[1]))
+			if err != nil {
+				return errors.WithStack(err)
+			}
+		}
+
+		fmt.Println(line)
 	}
 
-	if scanner.Err() != nil {
-		return scanner.Err()
+	fmt.Println("read body")
+
+	// リクエストボディ
+	// Content-Lengthに指定された分のbodyがある
+	buf := make([]byte, contentLength)
+	_, err = io.ReadFull(reader, buf)
+	if err != nil {
+		return errors.WithStack(err)
 	}
+
+	fmt.Println("BODY:", string(buf))
 
 	fmt.Println("<<< end")
 
