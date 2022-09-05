@@ -45,9 +45,11 @@ func run() error {
 	// textprotoを利用してreaderを生成しheaderを読み取る
 	scanner := textproto.NewReader(reader)
 
-	var contentLength int
-
 	// 1行ずつ処理する
+	var method, path string
+	header := make(map[string]string)
+
+	isFirst := true
 	for {
 		line, err := scanner.ReadLine()
 		// headerとbodyの間の空行があるのでheaderだけを読み取ることになる
@@ -58,28 +60,44 @@ func run() error {
 			return errors.WithStack(err)
 		}
 
-		// ex) line = "Content-Length: 23"
-		if strings.HasPrefix(line, "Content-Length") {
-			contentLength, err = strconv.Atoi(strings.TrimSpace(strings.Split(line, ":")[1]))
-			if err != nil {
-				return errors.WithStack(err)
-			}
+		if isFirst {
+			isFirst = false
+			// headerの1行目はmethod, pathなどを表している
+			// 空白で分けているので分割
+			headerLine := strings.Fields(line)
+			header["Method"] = headerLine[0]
+			header["Path"] = headerLine[1]
+			method = headerLine[0]
+			path = headerLine[1]
+			fmt.Println(method, path)
+			continue
 		}
 
-		fmt.Println(line)
+		// Header Fields
+		headerFields := strings.SplitN(line, ": ", 2)
+		fmt.Printf("%s: %s\n", headerFields[0], headerFields[1])
+		header[headerFields[0]] = headerFields[1]
 	}
-
-	fmt.Println("read body")
 
 	// リクエストボディ
-	// Content-Lengthに指定された分のbodyがある
-	buf := make([]byte, contentLength)
-	_, err = io.ReadFull(reader, buf)
-	if err != nil {
-		return errors.WithStack(err)
+	method, ok := header["Method"]
+	if !ok {
+		return errors.New("no method found")
 	}
-
-	fmt.Println("BODY:", string(buf))
+	// body読み込む
+	if method == "POST" || method == "PUT" {
+		len, err := strconv.Atoi(header["Content-Length"])
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		// Content-Lengthに指定された分のbodyがある
+		buf := make([]byte, len)
+		_, err = io.ReadFull(reader, buf)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		fmt.Println("BODY:", string(buf))
+	}
 
 	fmt.Println("<<< end")
 
