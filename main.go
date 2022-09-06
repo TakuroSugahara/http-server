@@ -1,10 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"log"
 	"net"
+	"sync"
 
+	"github.com/TakuroSugahara/http-server/server"
 	"github.com/pkg/errors"
 )
 
@@ -20,8 +22,6 @@ func main() {
 }
 
 func run() error {
-	fmt.Println("Start tcp listen...")
-
 	listen, err := net.Listen("tcp", "localhost:12345")
 	if err != nil {
 		errors.WithStack(err)
@@ -32,31 +32,23 @@ func run() error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	defer conn.Close()
+	fmt.Println("Start server listen...")
 
-	fmt.Println(">>> start")
+	wg := sync.WaitGroup{}
 
-	reader := bufio.NewReader(conn)
+	wg.Add(1)
+	// goroutineを使って複数リクエストをさばけるようにする
+	go func(conn net.Conn) {
+		defer wg.Done()
+		defer conn.Close()
 
-	req := NewRequester(reader)
+		fmt.Println("accept")
+		if err := server.Run(conn); err != nil {
+			log.Printf("internal server error: %+v", err)
+		}
+	}(conn)
 
-	// TODO: goroutineを使って複数リクエストに対応できるようにする
-
-	// リクエストボディ
-	method, err := req.GetMethod()
-	if err != nil {
-		return err
-	}
-	// body読み込む
-	if method == "POST" || method == "PUT" {
-		req.ReadBody(reader)
-	}
-
-	// status line
-	res := NewResponser(conn)
-	res.WriteOK()
-
-	fmt.Println("<<< end")
+	wg.Wait()
 
 	return nil
 }

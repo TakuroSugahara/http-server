@@ -1,6 +1,6 @@
 #!/bin/bash
 set -ex
 
-go build
+go build main.go
 
 ./main

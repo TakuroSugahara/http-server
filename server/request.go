@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bufio"
@@ -63,8 +63,9 @@ func (req *requester) ReadHeader() error {
 
 func (r *requester) GetMethod() (string, error) {
 	method, ok := r.header[Method]
+	fmt.Println(method, ok)
 	if !ok {
-		return "", errors.New("no method found")
+		return "", errors.New("not found method")
 	}
 	return method, nil
 }
